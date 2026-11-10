@@ -5,6 +5,7 @@ INSTALL_DIR="/opt/matrix" # Directory where the script will install the server |
 #SERVER_TYPE="synapse" # synapse, conduit
 HOMESERVER_URL="https://domain.com" # Will be change in the script
 OPTIONAL_CLIENT="none" # element, fluffyChat, cinny, commet or none
+OPTIONAL_CLIENT_URL="" # URL for the optional client, will be generated if empty | Default: empty
 
 # SYNAPSE
 HOMESERVER_NAME="server" # Temp Name
@@ -16,8 +17,6 @@ REMOTE_MEDIA_RETENTION="30d" # Number of days to keep remote media files | Defau
 REGISTRATION_SHARED_SECRET="" # Shared secret for registration, will be generated if empty | Default: empty
 MACAROON_SECRET_KEY="" # Secret key for macaroons, will be generated if empty | Default: empty
 FORM_SECRET="" # Secret key for the from field, will be generated if empty | Default: empty
-SIGNING_KEY_PATH="" # Path to the signing key, will be generated if empty | Default
-
 
 # POSTGRESQL
 POSTGRESQL_USER="synapse" # Username for the PostgreSQL database user | Default: synapse
@@ -118,6 +117,25 @@ if [ -n "$ACTIVATE_FEDERATION_INPUT" ]; then
 	ACTIVATE_FEDERATION="$ACTIVATE_FEDERATION_INPUT"
 fi
 
+echo "Enter local media retention (default: none), this is the number of days to keep local media files, if you want to keep them forever, enter none."
+echo "Local means all media files that are uploaded to your server. If you delete it, they will be lost forever."
+echo "Exemples: 30d, 1y, none"
+read LOCAL_MEDIA_RETENTION_INPUT
+if [ -n "$LOCAL_MEDIA_RETENTION_INPUT" ]; then
+	LOCAL_MEDIA_RETENTION="$LOCAL_MEDIA_RETENTION_INPUT"
+fi
+
+if [ "$ACTIVATE_FEDERATION" == "yes" ]; then
+	echo "Enter remote media retention (default: 30d), this is the number of days to keep remote media files, if you want to keep them forever, enter none."
+	echo "Remote means all media files that are uploaded to other servers and downloaded to your server."
+	echo "Remote media can be redownloaded from the other servers if needed, so it is not necessary to keep them forever."
+	echo "Exemples: 30d, 1y, none"
+	read REMOTE_MEDIA_RETENTION_INPUT
+	if [ -n "$REMOTE_MEDIA_RETENTION_INPUT" ]; then
+		REMOTE_MEDIA_RETENTION="$REMOTE_MEDIA_RETENTION_INPUT"
+	fi
+fi
+
 echo "Enable Calls with LiveKit? (yes/no) (default: yes)"
 read LIVEKIT_INSTALL_INPUT
 if [ -n "$LIVEKIT_INSTALL_INPUT" ]; then
@@ -141,4 +159,62 @@ if [ -n "$POSTGRESQL_DB_NAME_INPUT" ]; then
 	POSTGRESQL_DB_NAME="$POSTGRESQL_DB_NAME_INPUT"
 fi
 
-echo "
+if [ "$LIVEKIT_INSTALL" == "yes" ]; then
+	echo "Enter LiveKit ports (default: 7880, 7881, 7900-8000)"
+	echo "LiveKit TCP (default: 7880):"
+	read LIVEKIT_PORT_INPUT
+	if [ -n "$LIVEKIT_PORT_INPUT" ]; then
+		LIVEKIT_PORT="$LIVEKIT_PORT_INPUT"
+	fi
+	echo "LiveKit API (default: 7881):"
+	read LIVEKIT_PORT2_INPUT
+	if [ -n "$LIVEKIT_PORT2_INPUT" ]; then
+		LIVEKIT_TCP_PORT="$LIVEKIT_PORT2_INPUT"
+	fi
+	echo "LiveKit UDP ports (default: 7900-8000):"
+	read LIVEKIT_PORT3_INPUT
+	if [ -n "$LIVEKIT_PORT3_INPUT" ]; then
+		LIVEKIT_UDP_RANGE="$LIVEKIT_PORT3_INPUT"
+	fi
+fi
+
+echo "Do you want to install Ketesa (Synapse Admin)? (yes/no) (default: no)"
+read INSTALL_KETESA_INPUT
+if [ -n "$INSTALL_KETESA_INPUT" ]; then
+	INSTALL_KETESA="$INSTALL_KETESA_INPUT"
+fi
+
+echo "Do you want to install an optional client? (element, fluffyChat, cinny, commet or none) (default: none)"
+read OPTIONAL_CLIENT_INPUT
+if [ -n "$OPTIONAL_CLIENT_INPUT" ]; then
+	OPTIONAL_CLIENT="$OPTIONAL_CLIENT_INPUT"
+fi
+
+if [ "$OPTIONAL_CLIENT" != "none" ]; then
+	echo "Enter the URL for the optional client (default: will be generated if empty):"
+	read OPTIONAL_CLIENT_URL_INPUT
+	if [ -n "$OPTIONAL_CLIENT_URL_INPUT" ]; then
+		OPTIONAL_CLIENT_URL="$OPTIONAL_CLIENT_URL_INPUT"
+	fi
+fi
+
+# Generate random secrets
+echo "Generating random secrets for registration, macaroons, form and signing key, it will be done automatically, you can change them later if you want."
+echo "Secrets will be generated with openssl rand -hex 32."
+
+REGISTRATION_SHARED_SECRET=$(openssl rand -hex 32)
+MACAROON_SECRET_KEY=$(openssl rand -hex 32)
+FORM_SECRET=$(openssl rand -hex 32)
+
+if [ "$LIVEKIT_INSTALL" == "yes" ]; then
+	LIVEKIT_KEY=$(openssl rand -hex 32)
+	LIVEKIT_SECRET=$(openssl rand -hex 32)
+fi
+
+# Setup Environment
+if [ ! -d "$INSTALL_DIR" ]; then
+	mkdir -p "$INSTALL_DIR"
+fi
+
+mv "./ressources/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
+
