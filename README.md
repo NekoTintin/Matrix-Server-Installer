@@ -1,0 +1,1 @@
+Just a script to setup Synapse, a Matrix homeserver, on a server.
